@@ -881,7 +881,7 @@ def print_eval_result(examples, expredictions):
 # main
 NUMEPOCHS = 1000
 LOSS_EVAL_EPOCH = 100
-DEV_EVAL_EPOCHS = 10 * LOSS_EVAL_EPOCH
+DEV_EVAL_EPOCHS = 5 * LOSS_EVAL_EPOCH
 
 if options.mode in ['test', 'refresh']:
     sys.stderr.write("reusing " + options.modelfile + "...\n")

@@ -34,7 +34,7 @@ reduced_frame = [
  'Visiting',
  'Discussion',
  'Meet_with',
- #'Chatting',
+ 'Chatting',
  'Presence',
  #'Request',
  'Ingestion',
@@ -204,7 +204,7 @@ def get_all_fsps_in_sent(sent, sentann, fspno, lex_unit, frame, isfulltextann, c
             sys.stderr.write("\t\tRepeated frames encountered for same sentence\n")
 
     return numannosets, fspno, fsps
-
+sentids = []
 def get_annoids(filelist, outf, outsentf):
     annos = []
     isfirstex = True
@@ -225,35 +225,41 @@ def get_annoids(filelist, outf, outsentf):
             tree = et.parse(xml_file)
 
         root = tree.getroot()
+
         for sentence in root.iter('{http://framenet.icsi.berkeley.edu}sentence'):
+            run = False
             numsents += 1
             sys.stderr.write("sentence:\t" + str(sentence.attrib["ID"]) + "\n")
             for annotation in sentence.iter('{http://framenet.icsi.berkeley.edu}annotationSet'):
-		anno_id = annotation.attrib["ID"]
+                anno_id = annotation.attrib["ID"]
                 if anno_id == "2019791" and VERSION == "1.5":
                     # Hack to skip an erroneous annotation of Cathedral as raise.v with frame "Growing_food".
                     continue
-                if "luName" in annotation.attrib and "frameName" in annotation.attrib:
+                if "luName" in annotation.attrib and "frameName" in annotation.attrib and annotation.attrib["frameName"] in reduced_frame:
+                    print(annotation.attrib["frameName"])
                     annos.append(annotation.attrib["ID"])
-            # get the tokenization and pos tags for a sentence
-            sentann = process_sent(sentence, outsentf, isfirstsentex)
-            isfirstsentex = False
-            if sentann is None:
-                invalidsents += 1
-                sys.stderr.write("\t\tIssue: Token-level annotations not found\n")
-                continue
+                    run = True
+            if run:
+                # get the tokenization and pos tags for a sentence
+                sentids.append(sentence.attrib["ID"])
+                sentann = process_sent(sentence, outsentf, isfirstsentex)
+                isfirstsentex = False
+                if sentann is None:
+                    invalidsents += 1
+                    sys.stderr.write("\t\tIssue: Token-level annotations not found\n")
+                    continue
 
             # get all the different FSP annotations in the sentence
-            x, fspno, fsps = get_all_fsps_in_sent(sentence, sentann, fspno, None, None, True, outf)
-            totfsps += len(fsps)
-            if len(fsps) == 0: invalidsents += 1
-            if sentann.text in sents:
-                repeated += 1
-            for fsp in fsps.values():
-                sents.add(sentann.text)
-                write_to_conll(outf, fsp, isfirstex, numsents)
-                sizes[outf] += 1
-                isfirstex = False
+                x, fspno, fsps = get_all_fsps_in_sent(sentence, sentann, fspno, None, None, True, outf)
+                totfsps += len(fsps)
+                if len(fsps) == 0: invalidsents += 1
+                if sentann.text in sents:
+                    repeated += 1
+                for fsp in fsps.values():
+                    sents.add(sentann.text)
+                    write_to_conll(outf, fsp, isfirstex, numsents)
+                    sizes[outf] += 1
+                    isfirstex = False
         xml_file.close()
     sys.stdout.write("# total sents processed = %d\n" %numsents)
     sys.stdout.write("# repeated sents        = %d\n" %repeated)
@@ -295,6 +301,8 @@ def process_lu_xml(lufname, dev_annos, test_annos):
 
     frame = root.attrib["frame"]
     lex_unit = root.attrib["name"]
+    if frame not in reduced_frame:
+        return
     sys.stderr.write("\n" + lufname + "\t" + frame + "\t" + lex_unit + "\n")
 
     sentno = 0
@@ -302,6 +310,8 @@ def process_lu_xml(lufname, dev_annos, test_annos):
         sentno += 1
         # get the tokenization and pos tags for a sentence
         sent_id = sent.attrib["ID"]
+        if sent_id not in sentids:
+            continue
         sys.stderr.write("sentence:\t" + str(sent_id) + "\n")
 
         sentann = process_sent(sent, trainsentf, isfirstsent)
@@ -391,11 +401,12 @@ def preprocess_wvf(ws):
         sys.stdout.write("\ntotal num word vectors in file " + newwvf + " = " + str(numwv) + "\n")
 
 dev, test = process_fulltext()
-
+print(len(dev))
+print(len(test))
+print(len(sentids))
 totsents = numsentsreused = fspno = numlus = 0.0
 isfirst = isfirstsent = True
 process_exemplars(dev, test)
 
 if len(sys.argv) >= 2:
    preprocess_wvf([sys.argv[1]])
-   
