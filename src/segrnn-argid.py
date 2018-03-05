@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import dynet_config
+#dynet_config.set_gpu()
 from evaluation import *
 from discreteargidfeats import *
 from dynet import *
@@ -11,7 +13,7 @@ import time
 import math
 
 MODELSYMLINK = "model.segrnn-argid." + VERSION
-modelfname = "tmp/" + VERSION + "model.sra-" + str(time.time())
+modelfname = "../data/tmp/" + VERSION + "model.sra-" + str(time.time())
 
 optpr = OptionParser()
 optpr.add_option("--testf", dest="test_conll", help="Annotated CoNLL test file", metavar="FILE", default=TEST_CONLL)
@@ -191,7 +193,7 @@ if USE_CONSTITS:
     ALL_FEATS_DIM += 1 + PHRASEDIM  # is a constit and what is it
     ALL_FEATS_DIM += PATHDIM
 
-model = Model()
+model = ParameterCollection()
 adam = AdamTrainer(model, 0.0005, 0.01, 0.9999, 1e-8)
 
 v_x = model.add_lookup_parameters((VOCDICT.size(), TOKDIM))
@@ -282,7 +284,8 @@ def get_base_embeddings(trainmode, unkdtokens, tg_start, sentence):
     else:
         emb_x = [v_x[tok] for tok in unkdtokens]
     pos_x = [p_x[pos] for pos in sentence.postags]
-    dist_x = [scalarInput(abs(i - tg_start) + 1) for i in xrange(sentlen)]
+    #abs(i - tg_start) *0 + 1
+    dist_x = [scalarInput(0) for i in range(sentlen)]
 
     baseinp_x = [(pw_i * concatenate([emb_x[j], pos_x[j], dist_x[j]]) + pb_i) for j in xrange(sentlen)]
 
@@ -896,6 +899,7 @@ if options.mode in ['train', 'refresh']:
         random.shuffle(trainexamples)
 
         for idx, trex in enumerate(trainexamples, 1):
+
             if (idx - 1) % LOSS_EVAL_EPOCH == 0 and tagged > 0:
                 adam.status()
                 sys.stderr.write("%d loss = %f [took %.3f s]\n" % (idx - 1, (loss / tagged), time.time() - starttime))
@@ -921,7 +925,7 @@ if options.mode in ['train', 'refresh']:
             if trexloss is not None:
                 loss += trexloss.scalar_value()
                 trexloss.backward()
-                adam.update(1.0)
+                adam.update()
 
             if (idx - 1) % DEV_EVAL_EPOCHS == 0 and idx > 1:
                 devstarttime = time.time()
@@ -952,7 +956,7 @@ if options.mode in ['train', 'refresh']:
                                  "[dev epoch=%d after=%d] lprec = %.5f lrec = %.5f lf1 = %.5f"
                                  % (epoch, idx, wp, wr, wf, epoch, idx, up, ur, uf, epoch, idx, lp, lr, lf))
 
-                if lf > bestdevf:
+                if lf >= bestdevf:
                     bestdevf = lf
                     print_result(devexamples, predictions)
                     sys.stderr.write(" -- saving")
@@ -962,7 +966,7 @@ if options.mode in ['train', 'refresh']:
                     os.rename("tmp.link", MODELSYMLINK)
                 sys.stderr.write(" [took %.3f s]\n" % (time.time() - devstarttime))
                 starttime = time.time()
-        adam.update_epoch(1.0)
+        #adam.update_epoch(1.0)
 
 elif options.mode == "ensemble":
     exfs = {x: {} for x in xrange(len(devexamples))}

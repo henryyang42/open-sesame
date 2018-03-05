@@ -9,7 +9,7 @@ import time
 from optparse import OptionParser
 
 MODELSYMLINK = "model.frameid." + VERSION
-modelfname = "tmp/" + VERSION  + "model-" + str(time.time())
+modelfname = "../data/tmp/" + VERSION  + "model-" + str(time.time())
 
 # TODO use optparse
 optpr = OptionParser()
@@ -80,7 +80,7 @@ if USE_WV:
     sys.stderr.write("using pretrained embeddings of dimension " + str(PRETDIM) + "\n")
 
 
-lock_dicts() 
+lock_dicts()
 UNKTOKEN = VOCDICT.getid(UNK)
 
 sys.stderr.write("# words in vocab: " + str(VOCDICT.size()) + "\n")
@@ -112,7 +112,7 @@ sys.stderr.write("# unseen, unlearnt test frames: " + str(FRAMEDICT.num_unks()) 
 
 # sys.exit()
 
-model = Model()
+model = ParameterCollection()
 adam = SimpleSGDTrainer(model)
 # adam = AdamTrainer(model, 0.0001, 0.01, 0.9999, 1e-8)
 
@@ -286,7 +286,7 @@ if options.mode in ["train", "refresh"]:
         adam.update_epoch(1.0)
 
 elif options.mode == "test":
-    model.load(options.modelfile)
+    model.populate(options.modelfile)
     corpus_tpfpfn = [0.0, 0.0, 0.0]
 
     testpredictions = []
